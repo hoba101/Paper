@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en" >
+<head>
+  <meta charset="UTF-8">
+  <title>Paper</title>
+  <link rel='stylesheet' href='https://fonts.googleapis.com/css2?family=Short+Stack&amp;family=Homemade+Apple&amp;display=swap'><link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<!-- Share / Sync FAB -->
+<button id="shareFab" class="fab bg-fab" style="bottom: 190px; background-color: #2196F3;" title="Share / Load Code">
+  🔗
+</button>
+
+<!-- Sync Modal -->
+<div id="syncModal" class="modal-overlay">
+  <div class="modal">
+    <h2>Share & Load Papers</h2>
+    
+    <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #ddd;">
+      <h3 style="margin-top: 0; font-size: 16px;">📥 Load from Code</h3>
+      <p style="font-size: 12px; color: #666; margin-bottom: 10px;">Enter your partner's code to load their messages!</p>
+      <input type="text" id="syncLoadInput" placeholder="Enter Code (e.g. A7X9Q)" style="text-transform: uppercase;">
+      <button id="syncLoadBtn" class="btn primary" style="width: 100%; margin-top: 10px;">Load Papers</button>
+    </div>
+
+    <div style="background: #eef2ff; padding: 15px; border-radius: 8px; border: 1px solid #c7d2fe;">
+      <h3 style="margin-top: 0; font-size: 16px;">📤 Share My Board</h3>
+      <p style="font-size: 12px; color: #666; margin-bottom: 10px;">Generate a code for your current layout to share!</p>
+      <button id="syncGenerateBtn" class="btn primary" style="width: 100%; background-color: #4f46e5;">Generate Code</button>
+      <div id="syncCodeOutputBox" style="display: none; margin-top: 15px; text-align: center;">
+        <span style="font-size: 12px; color: #555;">Your Code:</span><br>
+        <span id="syncGeneratedCode" style="font-size: 26px; font-weight: bold; margin: 10px 0; display: inline-block; color: #4338ca; letter-spacing: 3px;"></span><br>
+        <button id="syncCopyBtn" class="btn secondary" style="font-size: 12px;">Copy Code</button>
+      </div>
+    </div>
+
+    <div class="modal-actions" style="margin-top: 15px;">
+      <button id="closeSyncBtn" class="btn secondary">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Change Background FAB -->
+<label class="bg-fab" title="Change Background">
+  🏞️
+  <input type="file" id="bgImageInput" accept="image/*" style="display: none;">
+</label>
+
+<!-- Add Page FAB -->
+<button id="addPageFab" class="fab">+</button>
+
+<!-- Add Page Modal -->
+<div id="addPageModal" class="modal-overlay">
+  <div class="modal">
+    <h2>Add New Paper</h2>
+    
+    <label for="paperText">Notes / Text:</label>
+    <textarea id="paperText" rows="3" placeholder="Write something sweet..."></textarea>
+
+    <label for="paperImage">Image (Optional):</label>
+    <input type="file" id="paperImage" accept="image/*">
+    
+    <label for="paperShape">Style / Layout:</label>
+    <select id="paperShape">
+      <option value="square">Classic Square</option>
+      <option value="round">Rounded</option>
+      <option value="polaroid">Polaroid Style</option>
+    </select>
+    
+    <label for="paperFont">Font Style:</label>
+    <select id="paperFont">
+      <option value="Zeyada">Zeyada (Default)</option>
+      <option value="Homemade Apple">Homemade Apple (Cursive)</option>
+      <option value="Short Stack">Short Stack (Marker)</option>
+      <option value="Arial, sans-serif">Standard (Arial)</option>
+      <option value="'Courier New', Courier, monospace">Typewriter (Courier)</option>
+    </select>
+    
+    <label for="paperFontColor">Font Color:</label>
+    <input type="color" id="paperFontColor" value="#000064">
+    
+    <label for="paperBgColor">Background Color:</label>
+    <input type="color" id="paperBgColor" value="#ffc0cb">
+
+    <label for="paperBgImage">Paper Background (Optional):</label>
+    <input type="file" id="paperBgImage" accept="image/*">
+
+    <div class="modal-actions">
+      <button id="cancelPageBtn" class="btn secondary">Cancel</button>
+      <button id="confirmPageBtn" class="btn primary">Add Paper</button>
+    </div>
+  </div>
+</div>
+
+<!-- Firebase SDK -->
+<!-- <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script> -->
+<!-- <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-database-compat.js"></script> -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+<!-- partial -->
+  <script src="./script.js"></script>
+</body>
+</html>

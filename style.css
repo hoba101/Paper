@@ -1,0 +1,284 @@
+@import url('https://fonts.googleapis.com/css2?family=Zeyada&display=swap');
+
+
+
+
+body {
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background-size: 1000px;
+  background-image: url("https://www.psdgraphics.com/wp-content/uploads/2022/01/white-math-paper-texture.jpg");
+  background-position: center center;
+}
+
+.paper {
+  background-image: url("https://i0.wp.com/textures.world/wp-content/uploads/2018/10/2-Millimeter-Paper-Background-copy.jpg?ssl=1");
+  background-size: 500px;
+  background-position: center center;
+  padding: 20px 100px;
+/*  min-width: 800px; */
+  
+  transform: rotateZ(-5deg);
+  box-shadow: 1px 15px 20px 0px rgba(0,0,0,0.5);
+  position: absolute;
+  touch-action: none;
+  max-width: 350px;
+}
+
+.paper img {
+  max-width: 100%;
+  max-height: 250px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+/* Delete Button Styling */
+.delete-btn {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 24px;
+  height: 24px;
+  background-color: transparent; 
+  color: #ff4b4b; 
+  border: 2px solid transparent;
+  border-radius: 50%;
+  font-weight: bold;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  transition: all 0.2s;
+  padding: 0;
+  line-height: 1;
+}
+
+.delete-btn:hover {
+  background-color: #ffeaea;
+  border-color: #ff4b4b;
+  transform: scale(1.1);
+}
+
+.delete-btn:active {
+  transform: scale(0.9);
+}
+
+p {
+  font-family: 'Zeyada';
+  font-size: 50px;
+  color: rgb(0,0,100);
+  opacity: 0.75;
+  user-select: none;
+  /* filter: drop-shadow(2px 1.5px 1px rgba(0,0,105,0.9)); */
+}
+
+/* FAB and Modal Styles */
+.fab {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  width: 65px;
+  height: 65px;
+  border-radius: 50%;
+  background-color: #ff4b4b;
+  color: white;
+  border: none;
+  font-family: Arial, sans-serif;
+  font-size: 40px;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(255, 75, 75, 0.4);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.fab:hover {
+  transform: scale(1.1);
+}
+
+.fab:active {
+  transform: scale(0.95);
+}
+
+.bg-fab {
+  position: fixed;
+  bottom: 110px;
+  right: 37px; /* Center with the larger button */
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background-color: #4b7aff;
+  color: white;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(75, 122, 255, 0.4);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.bg-fab:hover {
+  transform: scale(1.1);
+}
+
+.bg-fab:active {
+  transform: scale(0.95);
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.modal-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.modal {
+  background: white;
+  padding: 30px;
+  border-radius: 16px;
+  width: 90%;
+  max-width: 420px;
+  box-shadow: 0 15px 40px rgba(0,0,0,0.25);
+  font-family: Arial, sans-serif;
+  transform: translateY(20px);
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.modal-overlay.active .modal {
+  transform: translateY(0);
+}
+
+.modal h2 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  color: #333;
+  text-align: center;
+}
+
+.modal label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: bold;
+  font-size: 14px;
+  color: #555;
+  margin-top: 15px;
+}
+
+.modal input[type="file"], 
+.modal select, 
+.modal textarea {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 5px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-sizing: border-box;
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+}
+
+.modal input[type="color"] {
+  width: 100%;
+  height: 40px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  cursor: pointer;
+  padding: 2px;
+}
+
+.modal textarea {
+  resize: vertical;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 25px;
+}
+
+.btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.btn.primary {
+  background-color: #ff4b4b;
+  color: white;
+}
+
+.btn.primary:hover {
+  background-color: #e63939;
+}
+
+.btn.secondary {
+  background-color: #f0f0f0;
+  color: #555;
+}
+
+.btn.secondary:hover {
+  background-color: #e0e0e0;
+}
+
+/* New Shape Styles */
+.paper.polaroid {
+  background-image: none !important;
+  background-color: #ffffff;
+  padding: 15px 15px 55px 15px;
+  border-radius: 4px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+  width: 260px;
+  max-width: 90vw;
+}
+
+.paper.polaroid img {
+  border-radius: 2px;
+  width: 100%;
+  height: auto;
+  max-height: 280px;
+  object-fit: cover;
+}
+
+.paper.polaroid p {
+  font-size: 35px;
+  text-align: center;
+  margin-top: 20px;
+  margin-bottom: 0px;
+  width: 100%;
+}
+
+.paper.round {
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+}
