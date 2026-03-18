@@ -1,6 +1,7 @@
 // --- Firebase Config & Initialization ---
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyC0B77pFJlPlKh19AfMrZSToSh_BV7NM6g",
+  apiKey: "AIzaSyC0B77pFJlPIkH19AfMrZSToSh_BV7NM6g",
   authDomain: "duck-duck-project.firebaseapp.com",
   databaseURL: "https://duck-duck-project-default-rtdb.firebaseio.com",
   projectId: "duck-duck-project",
@@ -20,6 +21,130 @@ try {
   console.log("Firebase not configured correctly yet:", e);
 }
 
+// --- Canvas (Infinite Board) ---
+const canvas = document.getElementById('canvas');
+let canvasX = -2000; // start offset so papers appear near center of 6000px canvas
+let canvasY = -2000;
+let canvasZoom = 1;
+const MIN_ZOOM = 0.15;
+const MAX_ZOOM = 3;
+
+function updateCanvasTransform() {
+  canvas.style.transform = `translate(${canvasX}px, ${canvasY}px) scale(${canvasZoom})`;
+}
+updateCanvasTransform();
+
+// --- Canvas Pan (drag on empty canvas area) ---
+let isPanning = false;
+let panStartX = 0;
+let panStartY = 0;
+
+canvas.addEventListener('pointerdown', (e) => {
+  // Only pan if clicking directly on the canvas (not on a paper)
+  if (e.target === canvas) {
+    isPanning = true;
+    panStartX = e.clientX;
+    panStartY = e.clientY;
+    canvas.setPointerCapture(e.pointerId);
+    canvas.style.cursor = 'grabbing';
+  }
+});
+
+canvas.addEventListener('pointermove', (e) => {
+  if (!isPanning) return;
+  const dx = e.clientX - panStartX;
+  const dy = e.clientY - panStartY;
+  canvasX += dx;
+  canvasY += dy;
+  panStartX = e.clientX;
+  panStartY = e.clientY;
+  updateCanvasTransform();
+});
+
+canvas.addEventListener('pointerup', (e) => {
+  if (isPanning) {
+    isPanning = false;
+    canvas.releasePointerCapture(e.pointerId);
+    canvas.style.cursor = 'grab';
+  }
+});
+
+canvas.style.cursor = 'grab';
+
+// --- Canvas Zoom (scroll wheel) ---
+document.addEventListener('wheel', (e) => {
+  // Don't zoom when interacting with modals
+  if (e.target.closest('.modal-overlay') || e.target.closest('.modal')) return;
+  
+  e.preventDefault();
+  
+  const zoomSpeed = 0.001;
+  const delta = -e.deltaY * zoomSpeed;
+  const oldZoom = canvasZoom;
+  canvasZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, canvasZoom + delta * canvasZoom));
+  
+  // Zoom toward mouse position
+  const rect = document.body.getBoundingClientRect();
+  const mouseX = e.clientX;
+  const mouseY = e.clientY;
+  
+  const zoomRatio = canvasZoom / oldZoom;
+  canvasX = mouseX - (mouseX - canvasX) * zoomRatio;
+  canvasY = mouseY - (mouseY - canvasY) * zoomRatio;
+  
+  updateCanvasTransform();
+}, { passive: false });
+
+// --- Canvas Zoom (pinch on mobile) ---
+let lastPinchDist = 0;
+let lastPinchCenterX = 0;
+let lastPinchCenterY = 0;
+
+document.addEventListener('touchstart', (e) => {
+  if (e.touches.length === 2) {
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    lastPinchDist = Math.sqrt(dx * dx + dy * dy);
+    lastPinchCenterX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+    lastPinchCenterY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+  }
+}, { passive: true });
+
+document.addEventListener('touchmove', (e) => {
+  if (e.touches.length === 2) {
+    e.preventDefault();
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    
+    const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+    const centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+    
+    // Pan with two fingers
+    const panDx = centerX - lastPinchCenterX;
+    const panDy = centerY - lastPinchCenterY;
+    canvasX += panDx;
+    canvasY += panDy;
+    lastPinchCenterX = centerX;
+    lastPinchCenterY = centerY;
+    
+    // Zoom with pinch
+    if (lastPinchDist > 0) {
+      const oldZoom = canvasZoom;
+      const scale = dist / lastPinchDist;
+      canvasZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, canvasZoom * scale));
+      
+      const zoomRatio = canvasZoom / oldZoom;
+      canvasX = centerX - (centerX - canvasX) * zoomRatio;
+      canvasY = centerY - (centerY - canvasY) * zoomRatio;
+    }
+    
+    lastPinchDist = dist;
+    updateCanvasTransform();
+  }
+}, { passive: false });
+
+// --- Paper Class ---
 let highestZ = 1;
 
 class Paper {
@@ -38,6 +163,8 @@ class Paper {
   rotating = false;
 
   init(paper) {
+    this.updateTransform(paper);
+
     document.addEventListener('pointermove', (e) => {
       if(!this.holdingPaper) return;
 
@@ -45,8 +172,8 @@ class Paper {
         this.mouseX = e.clientX;
         this.mouseY = e.clientY;
         
-        this.velX = this.mouseX - this.prevMouseX;
-        this.velY = this.mouseY - this.prevMouseY;
+        this.velX = (this.mouseX - this.prevMouseX) / canvasZoom;
+        this.velY = (this.mouseY - this.prevMouseY) / canvasZoom;
       }
         
       const dirX = e.clientX - this.mouseTouchX;
@@ -69,7 +196,7 @@ class Paper {
       this.prevMouseX = this.mouseX;
       this.prevMouseY = this.mouseY;
 
-      paper.style.transform = `translateX(${this.currentPaperX}px) translateY(${this.currentPaperY}px) rotateZ(${this.rotation}deg)`;
+      this.updateTransform(paper);
     });
 
     paper.addEventListener('pointerdown', (e) => {
@@ -90,6 +217,9 @@ class Paper {
       if(e.button === 2) {
         this.rotating = true;
       }
+      
+      // Stop canvas panning when interacting with a paper
+      e.stopPropagation();
     });
 
     window.addEventListener('pointerup', () => {
@@ -97,7 +227,6 @@ class Paper {
       this.rotating = false;
     });
 
-    // Support for 2-finger touch rotation (mostly on Safari)
     paper.addEventListener('gesturestart', (e) => {
       e.preventDefault();
       this.rotating = true;
@@ -106,15 +235,56 @@ class Paper {
       this.rotating = false;
     });
   }
+
+  updateTransform(paper) {
+    paper.style.transform = `translateX(${this.currentPaperX}px) translateY(${this.currentPaperY}px) rotateZ(${this.rotation}deg)`;
+  }
 }
 
-const papers = Array.from(document.querySelectorAll('.paper'));
+// --- Resize Handle (Width & Height) ---
+function attachResizeHandle(paper, paperInstance) {
+  const handle = document.createElement('div');
+  handle.className = 'resize-handle';
+  handle.innerHTML = '⤡';
+  
+  let resizing = false;
+  let startX, startY, startW, startH;
 
+  handle.addEventListener('pointerdown', (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    resizing = true;
+    startX = e.clientX;
+    startY = e.clientY;
+    startW = paper.offsetWidth;
+    startH = paper.offsetHeight;
+    handle.setPointerCapture(e.pointerId);
+  });
+
+  handle.addEventListener('pointermove', (e) => {
+    if (!resizing) return;
+    e.stopPropagation();
+    const dx = (e.clientX - startX) / canvasZoom;
+    const dy = (e.clientY - startY) / canvasZoom;
+    const newW = Math.max(60, startW + dx);
+    const newH = Math.max(40, startH + dy);
+    paper.style.width = newW + 'px';
+    paper.style.height = newH + 'px';
+  });
+
+  handle.addEventListener('pointerup', (e) => {
+    resizing = false;
+    handle.releasePointerCapture(e.pointerId);
+  });
+
+  paper.appendChild(handle);
+}
+
+// --- Delete Button ---
 function attachDeleteButton(paper) {
   const deleteBtn = document.createElement('button');
   deleteBtn.className = 'delete-btn';
   deleteBtn.innerHTML = '✖';
-  // Prevent drag sequence from capturing the click
   deleteBtn.addEventListener('pointerdown', (e) => {
     e.stopPropagation(); 
   });
@@ -124,10 +294,13 @@ function attachDeleteButton(paper) {
   paper.appendChild(deleteBtn);
 }
 
+// --- Init existing papers ---
+const papers = Array.from(document.querySelectorAll('.paper'));
 papers.forEach(paper => {
   const p = new Paper();
   p.init(paper);
   attachDeleteButton(paper);
+  attachResizeHandle(paper, p);
 });
 
 // --- Modal and FAB Logic ---
@@ -143,6 +316,23 @@ const fontInput = document.getElementById('paperFont');
 const fontColorInput = document.getElementById('paperFontColor');
 const bgColorInput = document.getElementById('paperBgColor');
 const paperBgImageInput = document.getElementById('paperBgImage');
+const fontSizeInput = document.getElementById('paperFontSize');
+const fontSizeVal = document.getElementById('paperFontSizeVal');
+if(fontSizeInput) {
+  fontSizeInput.addEventListener('input', (e) => fontSizeVal.innerText = e.target.value + 'px');
+}
+const widthInput = document.getElementById('paperWidth');
+const widthVal = document.getElementById('paperWidthVal');
+if(widthInput) {
+  widthInput.addEventListener('input', (e) => widthVal.innerText = e.target.value + 'px');
+}
+const heightInput = document.getElementById('paperHeight');
+const heightVal = document.getElementById('paperHeightVal');
+if(heightInput) {
+  heightInput.addEventListener('input', (e) => {
+    heightVal.innerText = parseInt(e.target.value) === 0 ? 'Auto' : e.target.value + 'px';
+  });
+}
 
 fab.addEventListener('click', () => {
   modalOverlay.classList.add('active');
@@ -162,6 +352,9 @@ confirmBtn.addEventListener('click', async () => {
   const shape = shapeInput.value;
   const fontStyle = fontInput ? fontInput.value : 'Zeyada';
   const fontColor = fontColorInput ? fontColorInput.value : '#000064';
+  const fontSize = fontSizeInput ? fontSizeInput.value : '50';
+  const paperW = widthInput ? parseInt(widthInput.value) : 200;
+  const paperH = heightInput ? parseInt(heightInput.value) : 0;
   const bgColor = bgColorInput.value;
   const text = textInput.value;
   const imageFile = imageInput.files[0];
@@ -170,16 +363,27 @@ confirmBtn.addEventListener('click', async () => {
   const newPaper = document.createElement('div');
   newPaper.className = `paper ${shape !== 'square' ? shape : ''}`;
   
+  // Position new papers near the center of the visible area
+  const viewCenterX = (-canvasX + window.innerWidth / 2) / canvasZoom;
+  const viewCenterY = (-canvasY + window.innerHeight / 2) / canvasZoom;
+  newPaper.style.left = (viewCenterX - 100 + Math.random() * 200) + 'px';
+  newPaper.style.top = (viewCenterY - 100 + Math.random() * 200) + 'px';
+
+  // Apply width/height
+  newPaper.style.width = paperW + 'px';
+  if (paperH > 0) {
+    newPaper.style.height = paperH + 'px';
+  }
+
   if (shape !== 'polaroid') {
     newPaper.style.backgroundColor = bgColor;
-    // Remove the texture background image so customized color shows cleanly
     newPaper.style.backgroundImage = 'none';
   }
 
   let contentHtml = '';
   
   if (text) {
-    contentHtml += `<p class="p1" style="font-family: ${fontStyle.includes(' ') && !fontStyle.includes(',') ? `'${fontStyle}'` : fontStyle}, cursive; color: ${fontColor};">${text.replace(/\n/g, '<br>')}</p>`;
+    contentHtml += `<p class="p1" style="font-family: ${fontStyle.includes(' ') && !fontStyle.includes(',') ? `'${fontStyle}'` : fontStyle}, cursive; color: ${fontColor}; font-size: ${fontSize}px;">${text.replace(/\n/g, '<br>')}</p>`;
   }
 
   const readDataUrl = (file) => new Promise(resolve => {
@@ -206,12 +410,14 @@ confirmBtn.addEventListener('click', async () => {
   }
 
   newPaper.innerHTML = contentHtml;
-  document.body.appendChild(newPaper);
   
-  // Initialize drag logic
+  // Append to canvas instead of body
+  canvas.appendChild(newPaper);
+  
   const p = new Paper();
   p.init(newPaper);
   attachDeleteButton(newPaper);
+  attachResizeHandle(newPaper, p);
   
   // Reset modal
   textInput.value = '';
@@ -219,6 +425,9 @@ confirmBtn.addEventListener('click', async () => {
   shapeInput.value = 'square';
   if (fontInput) fontInput.value = 'Zeyada';
   if (fontColorInput) fontColorInput.value = '#000064';
+  if (fontSizeInput) { fontSizeInput.value = 50; fontSizeVal.innerText = '50px'; }
+  if (widthInput) { widthInput.value = 200; widthVal.innerText = '200px'; }
+  if (heightInput) { heightInput.value = 0; heightVal.innerText = 'Auto'; }
   bgColorInput.value = '#ffc0cb';
   if (paperBgImageInput) paperBgImageInput.value = '';
   modalOverlay.classList.remove('active');
@@ -232,9 +441,9 @@ if (bgImageInput) {
     if (file) {
       const reader = new FileReader();
       reader.onload = function(event) {
-        document.body.style.backgroundImage = `url(${event.target.result})`;
-        document.body.style.backgroundSize = 'cover';
-        document.body.style.backgroundPosition = 'center center';
+        canvas.style.backgroundImage = `url(${event.target.result})`;
+        canvas.style.backgroundSize = '100% 100%';
+        canvas.style.backgroundPosition = 'center center';
       };
       reader.readAsDataURL(file);
     }
@@ -244,7 +453,7 @@ if (bgImageInput) {
 // --- Share / Sync Logic & Serialization ---
 
 function serializePapers() {
-  const papers = document.querySelectorAll('.paper');
+  const papers = canvas.querySelectorAll('.paper');
   const data = [];
   papers.forEach(p => {
     const shapeClasses = Array.from(p.classList).filter(c => c !== 'paper' && !c.includes('dragging')).join(' ');
@@ -253,16 +462,41 @@ function serializePapers() {
       htmlContent: p.innerHTML,
       bgColor: p.style.backgroundColor,
       bgImage: p.style.backgroundImage,
+      bgSize: p.style.backgroundSize,
+      bgPos: p.style.backgroundPosition,
       transform: p.style.transform,
-      zIndex: p.style.zIndex
+      zIndex: p.style.zIndex,
+      width: p.style.width,
+      height: p.style.height,
+      left: p.style.left,
+      top: p.style.top
     });
   });
-  return data;
+  return {
+    items: data,
+    globalBg: canvas.style.backgroundImage,
+    canvasX: canvasX,
+    canvasY: canvasY,
+    canvasZoom: canvasZoom
+  };
 }
 
-function deserializePapers(dataArray) {
-  const existingPapers = document.querySelectorAll('.paper');
+function deserializePapers(dataPayload) {
+  const existingPapers = canvas.querySelectorAll('.paper');
   existingPapers.forEach(p => p.remove());
+
+  const dataArray = Array.isArray(dataPayload) ? dataPayload : (dataPayload.items || []);
+
+  if (!Array.isArray(dataPayload) && dataPayload.globalBg) {
+    canvas.style.backgroundImage = dataPayload.globalBg;
+  }
+
+  if (!Array.isArray(dataPayload) && dataPayload.canvasX !== undefined) {
+    canvasX = dataPayload.canvasX;
+    canvasY = dataPayload.canvasY;
+    canvasZoom = dataPayload.canvasZoom || 1;
+    updateCanvasTransform();
+  }
 
   dataArray.forEach(item => {
     const newPaper = document.createElement('div');
@@ -270,11 +504,17 @@ function deserializePapers(dataArray) {
     
     if (item.bgColor) newPaper.style.backgroundColor = item.bgColor;
     if (item.bgImage) newPaper.style.backgroundImage = item.bgImage;
+    if (item.bgSize) newPaper.style.backgroundSize = item.bgSize;
+    if (item.bgPos) newPaper.style.backgroundPosition = item.bgPos;
     if (item.transform) newPaper.style.transform = item.transform;
     if (item.zIndex) newPaper.style.zIndex = item.zIndex;
+    if (item.width) newPaper.style.width = item.width;
+    if (item.height) newPaper.style.height = item.height;
+    if (item.left) newPaper.style.left = item.left;
+    if (item.top) newPaper.style.top = item.top;
 
     newPaper.innerHTML = item.htmlContent;
-    document.body.appendChild(newPaper);
+    canvas.appendChild(newPaper);
     
     const p = new Paper();
     const transformStr = item.transform || "";
@@ -295,6 +535,11 @@ function deserializePapers(dataArray) {
     } else {
       attachDeleteButton(newPaper);
     }
+    
+    // Attach resize handle (remove any serialized ones first)
+    const existingHandle = newPaper.querySelector('.resize-handle');
+    if (existingHandle) existingHandle.remove();
+    attachResizeHandle(newPaper, p);
   });
 }
 
