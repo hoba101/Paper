@@ -34,26 +34,52 @@ function updateCanvasTransform() {
 }
 updateCanvasTransform();
 
-// --- Canvas Pan (drag on empty canvas area) ---
+// --- Canvas Pan (drag on empty canvas area) with momentum ---
 let isPanning = false;
 let panStartX = 0;
 let panStartY = 0;
+let panVelX = 0;
+let panVelY = 0;
+let panAnimFrame = 0;
+
+// Momentum animation
+function animatePanMomentum() {
+  if (Math.abs(panVelX) > 0.5 || Math.abs(panVelY) > 0.5) {
+    canvasX += panVelX;
+    canvasY += panVelY;
+    panVelX *= 0.92; // friction
+    panVelY *= 0.92;
+    updateCanvasTransform();
+    panAnimFrame = requestAnimationFrame(animatePanMomentum);
+  } else {
+    panVelX = 0;
+    panVelY = 0;
+  }
+}
 
 canvas.addEventListener('pointerdown', (e) => {
   // Only pan if clicking directly on the canvas (not on a paper)
   if (e.target === canvas) {
     isPanning = true;
+    cancelAnimationFrame(panAnimFrame); // stop any ongoing momentum
+    panVelX = 0;
+    panVelY = 0;
     panStartX = e.clientX;
     panStartY = e.clientY;
     canvas.setPointerCapture(e.pointerId);
     canvas.style.cursor = 'grabbing';
+    e.preventDefault();
   }
 });
 
 canvas.addEventListener('pointermove', (e) => {
   if (!isPanning) return;
+  e.preventDefault();
   const dx = e.clientX - panStartX;
   const dy = e.clientY - panStartY;
+  // Smooth velocity tracking (blend current with previous for smoother feel)
+  panVelX = panVelX * 0.3 + dx * 0.7;
+  panVelY = panVelY * 0.3 + dy * 0.7;
   canvasX += dx;
   canvasY += dy;
   panStartX = e.clientX;
@@ -66,6 +92,8 @@ canvas.addEventListener('pointerup', (e) => {
     isPanning = false;
     canvas.releasePointerCapture(e.pointerId);
     canvas.style.cursor = 'grab';
+    // Start momentum animation
+    panAnimFrame = requestAnimationFrame(animatePanMomentum);
   }
 });
 
@@ -280,6 +308,40 @@ function attachResizeHandle(paper, paperInstance) {
   paper.appendChild(handle);
 }
 
+// --- Rotate Handle ---
+function attachRotateHandle(paper, paperInstance) {
+  const handle = document.createElement('div');
+  handle.className = 'rotate-handle';
+  handle.innerHTML = '🔄';
+  
+  let rotating = false;
+  let startX, startRot;
+
+  handle.addEventListener('pointerdown', (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    rotating = true;
+    startX = e.clientX;
+    startRot = paperInstance.rotation;
+    handle.setPointerCapture(e.pointerId);
+  });
+
+  handle.addEventListener('pointermove', (e) => {
+    if (!rotating) return;
+    e.stopPropagation();
+    const dx = (e.clientX - startX) / canvasZoom;
+    paperInstance.rotation = startRot + dx * 0.5;
+    paperInstance.updateTransform(paper);
+  });
+
+  handle.addEventListener('pointerup', (e) => {
+    rotating = false;
+    handle.releasePointerCapture(e.pointerId);
+  });
+
+  paper.appendChild(handle);
+}
+
 // --- Delete Button ---
 function attachDeleteButton(paper) {
   const deleteBtn = document.createElement('button');
@@ -332,6 +394,11 @@ if(heightInput) {
   heightInput.addEventListener('input', (e) => {
     heightVal.innerText = parseInt(e.target.value) === 0 ? 'Auto' : e.target.value + 'px';
   });
+}
+const rotationInput = document.getElementById('paperRotation');
+const rotationVal = document.getElementById('paperRotationVal');
+if(rotationInput) {
+  rotationInput.addEventListener('input', (e) => rotationVal.innerText = e.target.value + '°');
 }
 
 fab.addEventListener('click', () => {
@@ -415,9 +482,13 @@ confirmBtn.addEventListener('click', async () => {
   canvas.appendChild(newPaper);
   
   const p = new Paper();
+  // Apply rotation from slider
+  const rotVal = rotationInput ? parseInt(rotationInput.value) : 0;
+  p.rotation = rotVal;
   p.init(newPaper);
   attachDeleteButton(newPaper);
   attachResizeHandle(newPaper, p);
+  attachRotateHandle(newPaper, p);
   
   // Reset modal
   textInput.value = '';
@@ -428,6 +499,7 @@ confirmBtn.addEventListener('click', async () => {
   if (fontSizeInput) { fontSizeInput.value = 50; fontSizeVal.innerText = '50px'; }
   if (widthInput) { widthInput.value = 200; widthVal.innerText = '200px'; }
   if (heightInput) { heightInput.value = 0; heightVal.innerText = 'Auto'; }
+  if (rotationInput) { rotationInput.value = 0; rotationVal.innerText = '0°'; }
   bgColorInput.value = '#ffc0cb';
   if (paperBgImageInput) paperBgImageInput.value = '';
   modalOverlay.classList.remove('active');
