@@ -36,6 +36,7 @@ updateCanvasTransform();
 
 // --- Canvas Pan (drag on empty canvas area) with momentum ---
 let isPanning = false;
+let activePanPointerId = null;
 let panStartX = 0;
 let panStartY = 0;
 let panVelX = 0;
@@ -60,20 +61,22 @@ function animatePanMomentum() {
 canvas.addEventListener('pointerdown', (e) => {
   // Only pan if clicking directly on the canvas (not on a paper)
   if (e.target === canvas) {
+    if (activePanPointerId !== null) return;
     isPanning = true;
+    activePanPointerId = e.pointerId;
     cancelAnimationFrame(panAnimFrame); // stop any ongoing momentum
     panVelX = 0;
     panVelY = 0;
     panStartX = e.clientX;
     panStartY = e.clientY;
-    canvas.setPointerCapture(e.pointerId);
+    try { canvas.setPointerCapture(e.pointerId); } catch(err) {}
     canvas.style.cursor = 'grabbing';
     e.preventDefault();
   }
 });
 
 canvas.addEventListener('pointermove', (e) => {
-  if (!isPanning) return;
+  if (!isPanning || e.pointerId !== activePanPointerId) return;
   e.preventDefault();
   const dx = e.clientX - panStartX;
   const dy = e.clientY - panStartY;
@@ -88,12 +91,22 @@ canvas.addEventListener('pointermove', (e) => {
 });
 
 canvas.addEventListener('pointerup', (e) => {
-  if (isPanning) {
+  if (isPanning && e.pointerId === activePanPointerId) {
     isPanning = false;
-    canvas.releasePointerCapture(e.pointerId);
+    activePanPointerId = null;
+    try { canvas.releasePointerCapture(e.pointerId); } catch(err) {}
     canvas.style.cursor = 'grab';
     // Start momentum animation
     panAnimFrame = requestAnimationFrame(animatePanMomentum);
+  }
+});
+
+canvas.addEventListener('pointercancel', (e) => {
+  if (isPanning && e.pointerId === activePanPointerId) {
+    isPanning = false;
+    activePanPointerId = null;
+    try { canvas.releasePointerCapture(e.pointerId); } catch(err) {}
+    canvas.style.cursor = 'grab';
   }
 });
 
@@ -129,7 +142,10 @@ let lastPinchCenterX = 0;
 let lastPinchCenterY = 0;
 
 document.addEventListener('touchstart', (e) => {
-  if (e.touches.length === 2) {
+  if (e.touches.length >= 2) {
+    isPanning = false;
+    activePanPointerId = null;
+    
     const dx = e.touches[0].clientX - e.touches[1].clientX;
     const dy = e.touches[0].clientY - e.touches[1].clientY;
     lastPinchDist = Math.sqrt(dx * dx + dy * dy);
