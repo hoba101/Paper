@@ -368,6 +368,7 @@ function attachDeleteButton(paper) {
   });
   deleteBtn.addEventListener('click', () => {
     paper.remove();
+    saveBoard();
   });
   paper.appendChild(deleteBtn);
 }
@@ -519,6 +520,7 @@ confirmBtn.addEventListener('click', async () => {
   bgColorInput.value = '#ffc0cb';
   if (paperBgImageInput) paperBgImageInput.value = '';
   modalOverlay.classList.remove('active');
+  saveBoard();
 });
 
 // --- Background Change Logic ---
@@ -532,6 +534,7 @@ if (bgImageInput) {
         canvas.style.backgroundImage = `url(${event.target.result})`;
         canvas.style.backgroundSize = '100% 100%';
         canvas.style.backgroundPosition = 'center center';
+        saveBoard();
       };
       reader.readAsDataURL(file);
     }
@@ -544,10 +547,14 @@ function serializePapers() {
   const papers = canvas.querySelectorAll('.paper');
   const data = [];
   papers.forEach(p => {
+    // Clone the node and strip the interactive handles so they are never
+    // serialized (otherwise every load would duplicate them).
+    const clone = p.cloneNode(true);
+    clone.querySelectorAll('.delete-btn, .resize-handle, .rotate-handle').forEach(el => el.remove());
     const shapeClasses = Array.from(p.classList).filter(c => c !== 'paper' && !c.includes('dragging')).join(' ');
     data.push({
       shapeClasses: shapeClasses,
-      htmlContent: p.innerHTML,
+      htmlContent: clone.innerHTML,
       bgColor: p.style.backgroundColor,
       bgImage: p.style.backgroundImage,
       bgSize: p.style.backgroundSize,
@@ -602,6 +609,8 @@ function deserializePapers(dataPayload) {
     if (item.top) newPaper.style.top = item.top;
 
     newPaper.innerHTML = item.htmlContent;
+    // Drop any handles that came from an older serialized snapshot.
+    newPaper.querySelectorAll('.delete-btn, .resize-handle, .rotate-handle').forEach(el => el.remove());
     canvas.appendChild(newPaper);
     
     const p = new Paper();
@@ -615,21 +624,45 @@ function deserializePapers(dataPayload) {
     p.rotation = rotMatch ? parseFloat(rotMatch[1]) : (Math.random() * 30 - 15);
     
     p.init(newPaper);
-    
-    const delBtn = newPaper.querySelector('.delete-btn');
-    if(delBtn) {
-      delBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
-      delBtn.addEventListener('click', () => newPaper.remove());
-    } else {
-      attachDeleteButton(newPaper);
-    }
-    
-    // Attach resize handle (remove any serialized ones first)
-    const existingHandle = newPaper.querySelector('.resize-handle');
-    if (existingHandle) existingHandle.remove();
+    attachDeleteButton(newPaper);
     attachResizeHandle(newPaper, p);
+    attachRotateHandle(newPaper, p);
   });
 }
+
+// --- Local persistence (survives refresh) ---
+const STORAGE_KEY = 'paper-board-v1';
+let saveTimer = 0;
+let storageWarned = false;
+
+function saveBoard() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(serializePapers()));
+    } catch (err) {
+      console.warn('Could not save board locally:', err);
+      if (!storageWarned) {
+        storageWarned = true;
+        alert('تعذر حفظ اللوحة محليًا: المساحة التخزينية ممتلئة. جرّب صورًا أصغر.');
+      }
+    }
+  }, 250);
+}
+
+function loadBoard() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    deserializePapers(JSON.parse(raw));
+  } catch (err) {
+    console.warn('Could not load saved board:', err);
+  }
+}
+
+// Save after any drag / resize / rotate gesture ends.
+window.addEventListener('pointerup', saveBoard);
+window.addEventListener('pointercancel', saveBoard);
 
 const shareFab = document.getElementById('shareFab');
 const syncModal = document.getElementById('syncModal');
@@ -693,6 +726,7 @@ if(shareFab) {
        const data = snapshot.val();
        if (data) {
          deserializePapers(data);
+         saveBoard();
          syncModal.classList.remove('active');
          alert("Board loaded successfully!");
        } else {
@@ -712,3 +746,6 @@ if(shareFab) {
      setTimeout(() => syncCopyBtn.innerText = "Copy Code", 2000);
   });
 }
+
+// Restore the locally saved board (if any) on page load.
+loadBoard();
